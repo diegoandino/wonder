@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, View, Button } from "react-native";
+import { StyleSheet, View, Pressable, Text, Image, ActivityIndicator } from "react-native";
 import { makeRedirectUri, useAuthRequest } from 'expo-auth-session';
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import UserModal from "./UserModal";
+import { CLIENT_ID, CLIENT_SECRET } from "@env"
 
 const scopes = [
     'user-read-playback-state',
@@ -13,6 +13,7 @@ const scopes = [
     'user-top-read',
     'user-read-playback-position',
     'user-read-recently-played',
+    'user-modify-playback-state',
 ];
 
 const discovery = {
@@ -25,8 +26,8 @@ const getUser = () => fetch('http://10.100.1.141:3000/get_me').then(res => res.j
 export default function Login({ navigation }) {
     const[user, setUser] = useState(null);
     const [req, res, promptAsync] = useAuthRequest({
-        clientId: 'ebd339cf6bc9490cb2513694d338c0c8',
-        clientSecret: 'be387a78301d46f98b4ca6b937db61c0',
+        clientId: CLIENT_ID,
+        clientSecret: CLIENT_SECRET,
         scopes: scopes,
         usePKCE: false,
         redirectUri: makeRedirectUri({ scheme: 'com.diegoandino.wonder' }),
@@ -97,16 +98,44 @@ export default function Login({ navigation }) {
 
     return (
         <View style={styles.container}>
-            <Button title="Login With Spotify" onPress={ () => promptAsync() }></Button>
+            <Image
+                source={require('../assets/Wonder.png')}
+                style={{width: 350, height: 350, borderRadius: 30}}>
+            </Image>
+            <Pressable
+                style={[styles.button, styles.buttonClose]}
+                onPress={ () => promptAsync() }>
+                <Text style={styles.textStyle}>Login With Spotify</Text>
+            </Pressable>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
-      flex: 1,
-      backgroundColor: '#fff',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }
+        flex: 1,
+        backgroundColor: '#000000',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    textStyle: {
+        color: "white",
+        fontWeight: "bold",
+        textAlign: "center",
+        fontSize: 16,
+    },
+    button: {
+        borderRadius: 20,
+        padding: 10,
+        elevation: 2,
+        backgroundColor: "#F194FF",
+        width: "40%",
+    },
+    buttonClose: {
+        backgroundColor: "#1DB954",
+    },
+    textStyleTitle: {
+        paddingBottom: "5%",
+        fontSize: 40,
+    },
 });

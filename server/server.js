@@ -72,6 +72,22 @@ const setupSpotifyApi = async (code) => {
   }
 }
 
+app.put('/play_track', async (req, res) => {
+  try {
+    console.log('Req: ', req.body['uri']);
+    console.log('Req: ', req.body['track_number']);
+    console.log('Req: ', req.body['progress_ms']);
+    const context = {
+      context_uri: req.body['uri'], 
+      offset: {position: req.body['track_number'] - 1}, 
+      position_ms: req.body['progress_ms']
+    };
+
+    var result = await spotifyApi.play(context);
+    console.log(result);
+  } catch (err) { console.log('Something went wrong!', err);}
+});
+
 app.listen(PORT, '10.100.1.141');
 
 /* var httpsServer = https.createServer(httpsCredentials, app);

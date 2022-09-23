@@ -36,7 +36,8 @@ app.post('/login', (req, res) => {
                     lng: longitude
                 },
                 logged_in: true,
-                spotifyProfilePicture: spotifyProfilePicture
+                spotifyProfilePicture: spotifyProfilePicture,
+                currentPlaybackState: {}
             });
             res.send("Inserted a new user");
         }
@@ -47,13 +48,25 @@ app.post('/update_user', (req, res) => {
     const users = client.db("Main").collection("Users");
     const longitude = req.body['location']['longitude'];
     const latitude = req.body['location']['latitude'];
+    const loggedIn = req.body['logged_in'];
+    const currentPlaybackState = req.body['currentPlaybackState'];
     try {
         const filter = { username: req.body['username'] };
         users.findOneAndUpdate(filter, 
-            { $set: { location: { lat: latitude, lng: longitude } } },
+            { $set: 
+                { location: 
+                    {   lat: latitude, 
+                        lng: longitude 
+                    },
+                    logged_in: loggedIn,
+                    currentPlaybackState: currentPlaybackState 
+                } 
+            },
             (err, doc) => { 
                 if (err) 
-                    console.log('Error in update_user find(): ', err) 
+                    console.log('Error in update_user find(): ', err)
+                else 
+                    console.log('Updated user')
         });
     }
     catch (err) {
