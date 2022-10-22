@@ -30,7 +30,7 @@ export default function Login({ navigation }) {
         clientSecret: CLIENT_SECRET,
         scopes: scopes,
         usePKCE: false,
-        redirectUri: makeRedirectUri({ scheme: 'com.diegoandino.wonder' }),
+        redirectUri: "exp://192.168.1.3:19000",
     }, discovery);
     
     let loggedIn = false;

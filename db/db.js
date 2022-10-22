@@ -11,7 +11,6 @@ const uri =
   `mongodb+srv://${process.env.MONGO_DB_USER}:${process.env.MONGO_DB_PWD}@wonder-cluster-0.ukwuhud.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri);
-let currentUsername = '';
 
 // Body Parser Middleware
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -24,7 +23,6 @@ app.post('/login', (req, res) => {
         const latitude = req.body['location']['latitude'];
         const spotifyProfilePicture = req.body['spotifyProfilePicture'];
         const users = client.db("Main").collection("Users");
-        currentUsername = username;
 
         // If username doesn't exist, create new user
         const userNameExists = await users.findOne({"username": username});
@@ -78,10 +76,9 @@ app.post('/update_user', (req, res) => {
 app.get('/get_logged_in_users', (req, res) => {
     client.connect(err => {
         const collection = client.db("Main").collection("Users");
-        console.log(currentUsername);
         
         // Filter out current user and return all other logged in users
-        collection.find({ logged_in: true, username: { $ne: currentUsername } }).toArray((err, docs) => {
+        collection.find({ logged_in: true }).toArray((err, docs) => {
             if (err) {
                 console.log('Error in get_logged_in_users: ', err);
             }
