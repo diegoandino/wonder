@@ -1,85 +1,120 @@
 import React, { useState, useEffect } from "react";
 import {
   Modal,
+  ImageBackground,
   StyleSheet,
-  Button,
   Text,
   View,
   Image,
   Pressable,
 } from "react-native";
+import GestureRecognizer from "react-native-swipe-gestures";
 
-export default SelectedUserModal = ({ showModal }, { selectedUser }) => {
+const getPlayBackState = () =>
+  fetch("http://10.100.1.141:3000/get_current_playing").then((res) =>
+    res.json()
+  );
+const playTrack = (uri, track_number, progress_ms) =>
+  fetch("http://10.100.1.141:3000/play_track", {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      uri: uri,
+      track_number: track_number,
+      progress_ms: progress_ms,
+    }),
+  })
+    .then((res) => res.json())
+    .catch((err) => console.log("Fetch Error: ", err));
+
+export default UserModal = ({ user }, { showModal }) => {
+  const [currentPlaybackState, setCurrentPlaybackState] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [pointerEvents, setPointerEvents] = useState("auto");
 
   useEffect(() => {
+    getPlayBackState().then((data) => {
+      setCurrentPlaybackState(data);
+    });
     setModalVisible(showModal);
+
+    console.log("user: ", user);
   }, []);
 
   return (
-    <View style={styles.centeredView} pointerEvents={pointerEvents}>
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        coverScreen={false}
-      >
-        {(selectedUser != null && selectedUser.currentPlaybackState == null) ||
-        JSON.stringify(selectedUser.currentPlaybackState) == "{}" ? (
-          <View style={styles.modalView}>
-            <Text style={styles.modalText}>
-              Nothing is playing at the moment
-            </Text>
-            <Pressable
-              style={[styles.button, styles.buttonClose]}
-              onPress={() => {
-                setModalVisible(!modalVisible);
-                setPointerEvents("none");
-              }}
-            >
-              <Text style={styles.textStyle}>Hide</Text>
-            </Pressable>
-          </View>
-        ) : (
-          selectedUser != null && (
+    <GestureRecognizer
+      onSwipeDown={() => {
+        setModalVisible(false);
+        setPointerEvents("none");
+      }}
+    >
+      <View style={styles.centeredView} pointerEvents={pointerEvents}>
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          coverScreen={false}
+        >
+          {currentPlaybackState == null ||
+          JSON.stringify(currentPlaybackState) == "{}" ? (
             <View style={styles.modalView}>
               <Text style={styles.modalText}>
-                User: {selectedUser.display_name}
+                Nothing is playing at the moment
               </Text>
-              <Text style={styles.modalText}>
-                Now Playing: {selectedUser.currentPlaybackState.item.name}
-              </Text>
-              <Image
-                source={{
-                  uri: selectedUser.currentPlaybackState.item.album.images[1]
-                    .url,
-                }}
-                style={{
-                  width:
-                    selectedUser.currentPlaybackState.item.album.images[1]
-                      .width / 2,
-                  height:
-                    selectedUser.currentPlaybackState.item.album.images[1]
-                      .height / 2,
-                }}
-              ></Image>
-              <Text style={styles.modalText}>
-                {selectedUser.currentPlaybackState.item.artists[0].name}
-              </Text>
-              <Button
+              <Pressable
                 style={[styles.button, styles.buttonClose]}
                 onPress={() => {
                   setModalVisible(!modalVisible);
                   setPointerEvents("none");
                 }}
-                title="Hide Modal"
-              ></Button>
+              >
+                <Text style={styles.textStyle}>Hide</Text>
+              </Pressable>
             </View>
-          )
-        )}
-      </Modal>
-    </View>
+          ) : (
+            currentPlaybackState != null &&
+            user.current != null && (
+              <View style={styles.modalView}>
+                <Text style={styles.modalTextTitle}>
+                  {user.current.display_name}
+                </Text>
+                <Text style={styles.modalText}>
+                  Now Playing: {currentPlaybackState.item.name}
+                </Text>
+                <Image
+                  source={{
+                    uri: currentPlaybackState.item.album.images[1].url,
+                  }}
+                  style={{
+                    width: currentPlaybackState.item.album.images[1].width / 2,
+                    height:
+                      currentPlaybackState.item.album.images[1].height / 2,
+                  }}
+                ></Image>
+                <Text style={styles.modalText}>
+                  {currentPlaybackState.item.artists[0].name}
+                </Text>
+                <Pressable
+                  style={[styles.button, styles.buttonClose]}
+                  onPress={() => {
+                    playTrack(
+                      currentPlaybackState.item.album.uri,
+                      currentPlaybackState.item.track_number,
+                      currentPlaybackState.progress_ms
+                    );
+                  }}
+                >
+                  <Text style={styles.textStyle}>Listen Along</Text>
+                </Pressable>
+              </View>
+            )
+          )}
+        </Modal>
+      </View>
+    </GestureRecognizer>
   );
 };
 
@@ -94,10 +129,10 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     left: 0,
-    backgroundColor: "#191414",
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
     borderRadius: 20,
     padding: 35,
-    alignItems: "center",
+    alignItems: "left",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -129,8 +164,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   modalText: {
+    marginTop: 5,
     marginBottom: 15,
     textAlign: "center",
     color: "white",
+    fontWeight: "bold",
+  },
+  modalTextTitle: {
+    marginTop: 5,
+    marginBottom: 15,
+    textAlign: "center",
+    color: "#1DB954",
+    fontWeight: "bold",
+    fontSize: 20,
+  },
+  image: {
+    flex: 1,
+    justifyContent: "center",
   },
 });

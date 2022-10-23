@@ -7,10 +7,8 @@ import { StyleSheet, View, Dimensions, Image } from "react-native";
 import * as Location from "expo-location";
 import * as Permissions from "expo-permissions";
 import { Marker } from "react-native-maps";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import UserModal from "./UserModal";
 import SelectedUserModal from "./SelectedUserModal";
-import EventSource from "react-native-event-source";
 
 const getUser = () =>
   fetch("http://10.100.1.141:3000/get_me").then((res) => res.json());
@@ -31,36 +29,16 @@ export default function Map() {
   const [locationResult, setLocationResult] = useState(null);
   const [usersInArea, setUsersInArea] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showSelectedUserModal, setShowSelectedUserModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [currentPlaybackState, setCurrentPlaybackState] = useState(null);
 
   let user = useRef(null);
   let usersInAreaRef = useRef(null);
-  let selectedUserShowModal = useRef(false);
   const longitudeDelta = 0.0421;
   const latitudeDelta = 0.0922;
 
   useInterval(() => {
-    // ! Original getLoggedInUsers function
-    /* console.log("Getting users in area");
-    getUsersInArea().then((data) => {
-      if (user != null) {
-        setUsersInArea(data.filter((x) => user.id != x.id));
-        console.log("Users in area: ", usersInArea);
-      }
-
-      setUsersInArea(data);
-      console.log("Users in area: ", data);
-    }); */
-
-    getPlayBackState().then((data) => {
-      setCurrentPlaybackState(data);
-      //console.log('Current playback state: ', data.item.artists[0].name);
-    });
-  }, 15000);
-
-  // ! Testing AbortController on getLoggedInUsers
-  useEffect(() => {
     const controller = new AbortController();
     fetch("http://10.100.1.141:8080/get_logged_in_users", {
       signal: controller.signal,
@@ -69,11 +47,24 @@ export default function Map() {
       .then((data) => {
         setUsersInArea(data);
         usersInAreaRef.current = data;
-        console.log("Users in area: ", data);
+        console.log("Users in area count: ", data.length);
       });
-  }, [locationResult]);
 
-  // get user only when user is null
+    getPlayBackState().then((data) => {
+      setCurrentPlaybackState(data);
+      console.log("Current playback state: ", data.item.artists[0].name);
+    });
+    return () => controller.abort();
+  }, 10000);
+
+  useInterval(() => {
+    getPlayBackState().then((data) => {
+      setCurrentPlaybackState(data);
+      //console.log('Current playback state: ', data.item.artists[0].name);
+    });
+  }, 10000);
+
+  // ! get user only when user is null
   /*   let COUNTER = 5000;
   useInterval(async () => {
     if (user == null) await getUser().then((data) => setUser(data));
@@ -111,6 +102,7 @@ export default function Map() {
     if (user.current != null) {
       const username = user.current.uri.replace("spotify:user:", "");
       fetch("http://10.100.1.141:8080/update_user", {
+        signal: controller.signal,
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -126,13 +118,14 @@ export default function Map() {
           spotifyProfilePicture: user.current.images[0].url,
           currentPlaybackState: currentPlaybackState,
         }),
-      }).catch((err) => console.log("POST User Data Fetch Error: ", err));
+      })
+        .then(() => console.log("User data posted to server"))
+        .catch((err) => console.log(""));
     }
 
     return () => controller.abort();
-  }, []);
+  }, [currentPlaybackState]);
 
-  // ! other users in area not showing???
   return (
     <View style={styles.container}>
       {hasLocationPermissions &&
@@ -149,9 +142,14 @@ export default function Map() {
               latitudeDelta: latitudeDelta,
               longitudeDelta: longitudeDelta,
             }}
-            onPress={() => (showModal ? setShowModal(false) : null)}
+            onPress={() =>
+              showModal || showSelectedUserModal
+                ? (setShowModal(false), setShowSelectedUserModal(false))
+                : null
+            }
           >
             <Marker
+              key={user.current.id}
               coordinate={{
                 latitude: latitude,
                 longitude: longitude,
@@ -159,6 +157,7 @@ export default function Map() {
                 longitudeDelta: longitudeDelta,
               }}
               onPress={() => {
+                setSelectedUser(user);
                 setShowModal(true);
               }}
             >
@@ -170,37 +169,38 @@ export default function Map() {
             {usersInAreaRef.current != null &&
               usersInAreaRef.current
                 .filter((u) => u.username != user.current.id)
-                .map(
-                  (u) =>
-                    (
-                      <Marker
-                        coordinate={{
-                          latitude: u.location.lat,
-                          longitude: u.location.lng,
-                          latitudeDelta: latitudeDelta,
-                          longitudeDelta: longitudeDelta,
-                        }}
-                        onPress={() => {
-                          selectedUserShowModal.current = true;
-                          setSelectedUser(u);
-                          console.log(selectedUserShowModal.current);
-                        }}
-                      >
-                        <Image
-                          source={{ uri: u.spotifyProfilePicture }}
-                          style={{ width: 64, height: 64, borderRadius: 30 }}
-                        ></Image>
-                      </Marker>
-                    ) ||
-                    (console.log("Selected User Modal: ", selectedUser),
-                    (
-                      <SelectedUserModal
-                        showModal={selectedUserShowModal.current}
-                        otherUser={selectedUser}
-                      />
-                    ))
-                )}
-            {showModal && <UserModal showModal={showModal} />}
+                .map((u) => (
+                  <Marker
+                    key={u.username}
+                    coordinate={{
+                      latitude: u.location.lat,
+                      longitude: u.location.lng,
+                      latitudeDelta: latitudeDelta,
+                      longitudeDelta: longitudeDelta,
+                    }}
+                    onPress={() => {
+                      setShowModal(true);
+                      setSelectedUser(u);
+                    }}
+                  >
+                    <Image
+                      source={{ uri: u.spotifyProfilePicture }}
+                      style={{ width: 64, height: 64, borderRadius: 30 }}
+                    ></Image>
+                  </Marker>
+                ))}
+            {showModal && (
+              <SelectedUserModal showModal={showModal} user={selectedUser} />
+            )}
+            {/* {showSelectedUserModal &&
+              showModal == false &&
+              (console.log("Selected user: ", selectedUser.username),
+              (
+                <SelectedUserModal
+                  showModal={showSelectedUserModal}
+                  otherUser={selectedUser}
+                />
+              ))} */}
           </MapView>
         )}
     </View>
