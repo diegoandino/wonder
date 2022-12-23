@@ -34,13 +34,21 @@ export default UserModal = ({ user }, { showModal }) => {
   const [currentPlaybackState, setCurrentPlaybackState] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [pointerEvents, setPointerEvents] = useState("auto");
+  const [username, setUsername] = useState("");
 
   useEffect(() => {
-    getPlayBackState().then((data) => {
-      setCurrentPlaybackState(data);
-    });
-    setModalVisible(showModal);
+    setUsername(user.username);
+    console.log("Username: ", user.username);
 
+    fetch(`http://10.100.1.141:8080/get_user/${user.username}`)
+      .then((res) => res.json())
+      .then((fetchedUser) => {
+        console.log("Fetched user: ", fetchedUser);
+        setCurrentPlaybackState(fetchedUser.currentPlaybackState);
+      })
+      .catch((err) => console.log(""));
+
+    setModalVisible(showModal);
     console.log("user: ", user);
   }, []);
 
@@ -76,11 +84,9 @@ export default UserModal = ({ user }, { showModal }) => {
             </View>
           ) : (
             currentPlaybackState != null &&
-            user.current != null && (
+            user != null && (
               <View style={styles.modalView}>
-                <Text style={styles.modalTextTitle}>
-                  {user.current.display_name}
-                </Text>
+                <Text style={styles.modalTextTitle}>{user.username}</Text>
                 <Text style={styles.modalText}>
                   Now Playing: {currentPlaybackState.item.name}
                 </Text>

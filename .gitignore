@@ -1,4 +1,5 @@
 .env.*
 .env*
-.env
-.pem
+*.env
+*.pem
+/node_modules
