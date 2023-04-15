@@ -70,16 +70,16 @@ app.post("/update_user", (req, res) => {
 
 // get current user from db
 app.get("/get_user/:username", (req, res) => {
-    const users = client.db("Main").collection("Users");
-    const username = req.query["username"];
-    try {
-        users.findOne({ username: username }, (err, doc) => {
-            if (err) console.log("Error in get_user find(): ", err);
-            else res.send(doc);
-        });
-    } catch (err) {
-        console.log("Error in get_user: ", err);
-    }
+  const users = client.db("Main").collection("Users");
+  const username = req.params.username;
+  try {
+    users.findOne({ username: username }, (err, doc) => {
+      if (err) console.log("Error in get_user find(): ", err);
+      else res.send(doc);
+    });
+  } catch (err) {
+    console.log("Error in get_user: ", err);
+  }
 });
 
 // get all users from database that are logged in

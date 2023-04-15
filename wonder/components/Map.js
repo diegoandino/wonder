@@ -9,8 +9,9 @@ import * as Permissions from "expo-permissions";
 import { Marker } from "react-native-maps";
 import UserModal from "./UserModal";
 import SelectedUserModal from "./SelectedUserModal";
+import io from "socket.io-client";
 
-const getUser = () =>
+const getMe = () =>
   fetch("http://10.100.1.141:3000/get_me").then((res) => res.json());
 const getUsersInArea = () =>
   fetch("http://10.100.1.141:8080/get_logged_in_users").then((res) =>
@@ -35,8 +36,21 @@ export default function Map() {
 
   let user = useRef(null);
   let usersInAreaRef = useRef(null);
+  const socketRef = useRef();
   const longitudeDelta = 0.0421;
   const latitudeDelta = 0.0922;
+
+  useEffect(() => {
+    socketRef.current = io("http://10.100.1.141:3000");
+    socketRef.current.on("connect", () => {
+      console.log("Socket Connected: ", socketRef.current.connected);
+      socketRef.current.emit("get-current-playback", "Get Current Playback");
+      socketRef.current.on("response-current-playback", (data) => {
+        console.log("Socket Data: ", data);
+        //setCurrentPlaybackState(data);
+      });
+    });
+  }, []);
 
   useInterval(() => {
     const controller = new AbortController();
@@ -48,32 +62,43 @@ export default function Map() {
         setUsersInArea(data);
         usersInAreaRef.current = data;
         console.log("Users in area count: ", data.length);
-      });
+      })
+      .catch((err) => console.log(""));
 
-    getPlayBackState().then((data) => {
-      setCurrentPlaybackState(data);
-      console.log("Current playback state: ", data.item.artists[0].name);
-    });
+    getPlayBackState()
+      .then((data) => {
+        setCurrentPlaybackState(data);
+        console.log("Current playback state: ", data.item.artists[0].name);
+      })
+      .catch((err) => console.log(""));
     return () => controller.abort();
   }, 10000);
 
   useInterval(() => {
-    getPlayBackState().then((data) => {
-      setCurrentPlaybackState(data);
-      //console.log('Current playback state: ', data.item.artists[0].name);
-    });
+    getPlayBackState()
+      .then((data) => {
+        setCurrentPlaybackState(data);
+        //console.log('Current playback state: ', data.item.artists[0].name);
+      })
+      .catch((err) => console.log(""));
   }, 10000);
 
-  // ! get user only when user is null
-  /*   let COUNTER = 5000;
-  useInterval(async () => {
-    if (user == null) await getUser().then((data) => setUser(data));
-    else COUNTER = 0;
-  }, COUNTER); */
-
+  // * get user
   useEffect(() => {
-    if (user.current == null) getUser().then((data) => (user.current = data));
-  }, []);
+    if (user.current == null) {
+      getMe().then((data) => {
+        fetch(`http://10.100.1.141:8080/get_user/${data.id}`)
+          .then((res) => res.json())
+          .then((fetchedUser) => {
+            console.log("Fetched user: ", fetchedUser);
+            fetchedUser.spotifyProfilePicture = data.images[0].url;
+            user.current = fetchedUser;
+            setCurrentPlaybackState(fetchedUser.currentPlaybackState);
+          })
+          .catch((err) => console.log(""));
+      });
+    }
+  }, [mapRef]);
 
   // * useEffect for location permissions and location set
   useEffect(() => {
@@ -100,7 +125,7 @@ export default function Map() {
   useEffect(() => {
     const controller = new AbortController();
     if (user.current != null) {
-      const username = user.current.uri.replace("spotify:user:", "");
+      const username = user.current.username;
       fetch("http://10.100.1.141:8080/update_user", {
         signal: controller.signal,
         method: "POST",
@@ -115,7 +140,7 @@ export default function Map() {
             longitude: longitude,
           },
           logged_in: true,
-          spotifyProfilePicture: user.current.images[0].url,
+          spotifyProfilePicture: user.current.spotifyProfilePicture,
           currentPlaybackState: currentPlaybackState,
         }),
       })
@@ -162,7 +187,7 @@ export default function Map() {
               }}
             >
               <Image
-                source={{ uri: user.current.images[0].url }}
+                source={{ uri: user.current.spotifyProfilePicture }}
                 style={{ width: 64, height: 64, borderRadius: 30 }}
               ></Image>
             </Marker>

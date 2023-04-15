@@ -4,18 +4,14 @@ const fs = require("fs");
 const bodyParser = require("body-parser");
 const https = require("https");
 const SpotifyWebApi = require("spotify-web-api-node");
+const { Socket } = require("socket.io");
 
 require("dotenv").config();
 
 const PORT = process.env.EXPRESS_PORT;
 const app = express();
-
-var key = fs.readFileSync("./certs/selfsigned.key");
-var cert = fs.readFileSync("./certs/selfsigned.crt");
-var httpsCredentials = {
-  key: key,
-  cert: cert,
-};
+const server = require("http").createServer(app);
+const io = require("socket.io")(server);
 
 const credentials = {
   clientId: process.env.CLIENT_ID,
@@ -49,6 +45,27 @@ const setupSpotifyApi = async (code) => {
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+// Socket Events
+io.on("connection", (socket) => {
+  console.log("User connected");
+  socket.on("disconnect", () => {
+    console.log("User disconnected");
+  });
+  socket.on("get-current-plaback", (data) => {
+    console.log(data);
+    spotifyApi.getMyCurrentPlaybackState().then(
+      function (data) {
+        console.log("Now Playing: ", data.body);
+        socket.send("response-current-playback", data.body);
+      },
+      function (err) {
+        console.log("Something went wrong!", err);
+      }
+    );
+  });
+});
+
+// REST ENDPOINTS
 app.post("/code", (req, res) => {
   const code = req.body["code"];
   setupSpotifyApi(code);
@@ -75,9 +92,6 @@ app.get("/get_current_playing", async (req, res) => {
 
 app.put("/play_track", async (req, res) => {
   try {
-    console.log("Req: ", req.body["uri"]);
-    console.log("Req: ", req.body["track_number"]);
-    console.log("Req: ", req.body["progress_ms"]);
     const context = {
       context_uri: req.body["uri"],
       offset: { position: req.body["track_number"] - 1 },
@@ -91,7 +105,4 @@ app.put("/play_track", async (req, res) => {
   }
 });
 
-app.listen(PORT, "10.100.1.141");
-
-/* var httpsServer = https.createServer(httpsCredentials, app);
-httpsServer.listen(PORT, () => {console.log(`Listening on ${PORT}`)}); */
+server.listen(PORT, "10.100.1.141");
